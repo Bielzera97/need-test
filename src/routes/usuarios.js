@@ -1,6 +1,39 @@
+const fp = require('fastify-plugin');
+
 async function usuariosRoutes(fastify, options) {
+    // Esquema do usuário para validação e documentação
+    const usuarioSchema = {
+        type: 'object',
+        required: ['nome', 'email'],
+        properties: {
+            id: { type: 'integer', description: 'ID do usuário' },
+            nome: { type: 'string', minLength: 1, description: 'Nome do usuário' },
+            email: { type: 'string', format: 'email', description: 'Email do usuário' }
+        }
+    };
+
+    // Esquema de erro para 404
+    const notFoundSchema = {
+        type: 'object',
+        properties: {
+            message: { type: 'string', description: 'Mensagem de erro' }
+        }
+    };
+
     // GET: Listar todos os usuários
-    fastify.get('/usuarios', async (request, reply) => {
+    fastify.get('/usuarios', {
+        schema: {
+            description: 'Lista todos os usuários',
+            tags: ['Usuários'],
+            response: {
+                200: {
+                    description: 'Lista de usuários',
+                    type: 'array',
+                    items: usuarioSchema
+                }
+            }
+        }
+    }, async (request, reply) => {
         try {
             const client = await fastify.pg.connect();
             const { rows } = await client.query('SELECT * FROM usuarios');
@@ -12,7 +45,17 @@ async function usuariosRoutes(fastify, options) {
     });
 
     // POST: Criar um usuário
-    fastify.post('/usuarios', async (request, reply) => {
+    fastify.post('/usuarios', {
+        schema: {
+            description: 'Cria um novo usuário',
+            tags: ['Usuários'],
+            body: usuarioSchema,
+            response: {
+                200: usuarioSchema,
+                400: notFoundSchema
+            }
+        }
+    }, async (request, reply) => {
         const { nome, email } = request.body;
         try {
             const client = await fastify.pg.connect();
@@ -28,7 +71,23 @@ async function usuariosRoutes(fastify, options) {
     });
 
     // PUT: Atualizar um usuário
-    fastify.put('/usuarios/:id', async (request, reply) => {
+    fastify.put('/usuarios/:id', {
+        schema: {
+            description: 'Atualiza um usuário existente',
+            tags: ['Usuários'],
+            params: {
+                type: 'object',
+                properties: {
+                    id: { type: 'integer', description: 'ID do usuário' }
+                }
+            },
+            body: usuarioSchema,
+            response: {
+                200: usuarioSchema,
+                404: notFoundSchema
+            }
+        }
+    }, async (request, reply) => {
         const { id } = request.params;
         const { nome, email } = request.body;
         try {
@@ -45,7 +104,22 @@ async function usuariosRoutes(fastify, options) {
     });
 
     // DELETE: Deletar um usuário
-    fastify.delete('/usuarios/:id', async (request, reply) => {
+    fastify.delete('/usuarios/:id', {
+        schema: {
+            description: 'Deleta um usuário',
+            tags: ['Usuários'],
+            params: {
+                type: 'object',
+                properties: {
+                    id: { type: 'integer', description: 'ID do usuário' }
+                }
+            },
+            response: {
+                200: notFoundSchema,
+                404: notFoundSchema
+            }
+        }
+    }, async (request, reply) => {
         const { id } = request.params;
         try {
             const client = await fastify.pg.connect();
@@ -58,4 +132,4 @@ async function usuariosRoutes(fastify, options) {
     });
 }
 
-module.exports = usuariosRoutes;
+module.exports = fp(usuariosRoutes);
